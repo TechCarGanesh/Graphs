@@ -1,97 +1,118 @@
+import random
+import heapq
 from queue import Queue
+NUM_LANDMARKS = 14
+
 graph = {
-    "A" : ["B", "C", "D"],
-    "B" : ["A", "E"],
+    "Central Park": ["Fifth Avenue", "Metropolitan Museum of Art", "Wall Street"],
+    "Fifth Avenue": ["Central Park", "Empire State Building"],
+    "Times Square": ["Broadway", "Empire State Building", "Grand Central Terminal"],
+    "Broadway": ["Times Square", "Rockefeller Center"],
+    "Empire State Building": ["Chrysler Building", "Fifth Avenue", "Times Square"],
+    "Wall Street": ["One World Trade Center"],
+    "Grand Central Terminal": ["Chrysler Building", "Rockefeller Center", "One World Trade Center", "Times Square"],
+    "Rockefeller Center": ["One World Trade Center", "Grand Central Terminal", "Broadway"],
+    "Metropolitan Museum of Art": ["Central Park", "One World Trade Center"],
+    "Chrysler Building": ["Grand Central Terminal", "Wall Street", "Empire State Building"],
+    "One World Trade Center": ["Wall Street", "Rockefeller Center", "Grand Central Terminal",
+                               "Metropolitan Museum of Art"]
 }
 
-class GraphAL:
-    def __init__(self):
-        self.graph = {}
 
-    def add_vertex(self, v):
-        print("add_vertex function")
-        # Add vertex to the graph
-        if v not in self.graph:
-            self.graph[v] = []
-
-    def add_edge(self, v1, v2):
-        print("add_edge function")
-        if v1 in self.graph and v2 in self.graph:
-            if v1 != v2 and v2 not in self.graph[v1]:
-                print("Adding an edge from v1 to v2.")
-                self.graph[v1].append(v2)
-                print("Adding an edge from v2 to v1.")
-                self.graph[v2].append(v1)
-        else:
-            print("One or both vertices not found in the graph!")
-
-    def display(self):
-        print("display function")
-        for v, edges in self.graph.items():
-            print("Inside the for loop")
-            print(f"{v}: {edges}")
-
-class GraphMatrix:
+class GraphAdjMatrix:
     def __init__(self, num_v):
         print("Constructor")
         self.num_v = num_v
         self.vertices = []
-        self.matrix = []
-        self.graph = [[0] * num_v for _ in range(num_v)]
+        self.vertex_indices = {}
+        self.matrix = [[0] * num_v for _ in range(num_v)]
+        # self.graph = [[0] * num_v for _ in range(num_v)]
+        self.graph = [[]]
         self.queue = []
 
     def add_vertex(self, v):
         print("add_vertex function")
-        if v not in self.vertices:
-            self.vertices.append(v)
-            # Expand each row in the matrix
-            for row in self.matrix:
-                row.append(0)
-            # Add new row
-            self.matrix.append([0] * len(self.vertices))
+        if v not in self.vertex_indices:
+            if len(self.vertices) < self.num_v:
+                # Add vertex name
+                self.vertex_indices[v] = len(self.vertices)
+                self.vertices.append(v)
+
+                # Expand existing rows in the matrix
+                for row in self.graph:
+                    row.append(v)
+
+                # Add new row for the new vertex
+                self.graph.append([0] * (len(self.vertices)))
+            else:
+                print("Maximum number of vertices reached.")
+        else:
+            print(f"Vertex '{v}' already exists.")
 
     def add_edge(self, v1, v2, w):
-        print("add_edge function")
+        print("add_edge function v1 ", v1, "v2 ", v2, "w ", w)
         # v1 and v2 are not the vertices themselves but the index they are associated with.
-        if 0 <= v1 <= self.num_v and 0 <= v2 <= self.num_v:
-            self.matrix[v1][v2] = w
-            self.matrix[v2][v1] = w
+        # print("Graph vertices:", self.graph)
+        if v1 in self.vertices and v2 in self.vertices:
+            i = self.vertex_indices[v1]
+            j = self.vertex_indices[v2]
+            if v1 != v2 and v2 not in self.graph[i]:
+                print("Adding an edge from v1 to v2.")
+                self.graph[i][j] = v1
+                self.graph[j][i] = v2
+                self.matrix[i][j] = w
+                self.matrix[j][i] = w  # For undirected graph
         else:
-            print(f"Error: Vertex out of bounds")
+            print("One or both vertices not found in the graph!")
 
     def remove_edge(self, v1, v2):
         print("remove_edge function")
         if v1 in self.vertices and v2 in self.vertices:
-            self.matrix[v1][v2] = 0
-            self.matrix[v2][v1] = 0
+            i = self.vertex_indices[v1]
+            j = self.vertex_indices[v2]
+            self.matrix[i][j] = 0
+            self.matrix[j][i] = 0
         else:
             print(f"Error: Vertex out of bounds")
 
     def display(self):
-        for row in self.matrix:
-            print(row)
+        print("In display function")
+        for v1 in self.vertices:
+            i = self.vertex_indices[v1]
+            for row in self.matrix[i]:
+                print(row, end=' ')
+            print()
 
     def deque(self, v):
-        return self.matrix.index(v)
+        print("In deque function")
+        return self.graph.index(v)
 
-    def bfs(self, start_v):
-        # set up visited set and the queue
+    def bfs(self, start_vertex):
+        if start_vertex not in self.vertex_indices:
+            print(f"Start vertex '{start_vertex}' not found in the graph.")
+            return
+
         visited = set()
-        queue = [start_v]
+        queue = []
 
+        visited.add(start_vertex)
+        queue.append(start_vertex)
 
-        # While queue is not empty
+        print("\nBFS Traversal:")
+
         while queue:
-            # Remove the front and print
-            current = queue.pop(0)
-            if current not in visited:
-                visited.add(current)
-            print(current)
-            # Add all unvisited nodes to the printed node to the back
-            # of the queue, set them as visited.
-            for adj in self.graph[current]:
-                if adj not in visited:
-                    queue.append(adj)
+            current_vertex = queue.pop(0)
+            print(current_vertex, end=" ")
+
+            current_index = self.vertex_indices[current_vertex]
+            for neighbor_index in range(len(self.vertices)):
+                weight = self.graph[current_index][neighbor_index]
+                if weight != 0:
+                    neighbor_vertex = self.vertices[neighbor_index]
+                    if neighbor_vertex not in visited:
+                        visited.add(neighbor_vertex)
+                        queue.append(neighbor_vertex)
+        print()
 
     def dfs(self, start_v):
         # Set up visited and the stack with start vertex in the stack
@@ -107,54 +128,88 @@ class GraphMatrix:
             print(current)
             # Add all unvisited nodes to the printed node to the back
             # of the stack, set them as visited.
-            for adj in self.graph[current]:
+            for lm in self.graph[current]:
                 # For neighbor in adj list add to stack if not in visited.
-                if adj not in visited:
-                    stack.append(adj)
+                if lm not in visited:
+                    stack.append()
 
-    def shortest_path(self, start_v, end_v):
-        # Choose the job with the highest profit available at the moment.
 
-        # Check if this job can be completed before its deadline.
-        # If feasible, include the job in the final solution.
-        # Repeat until no further jobs can be added without violating the deadline constraint.
+    def shortest_path(self, start_vertex, end_vertex):
+        if start_vertex not in self.vertex_indices or end_vertex not in self.vertex_indices:
+            print("One or both vertices not found in the graph.")
+            return
 
+        start_index = self.vertex_indices[start_vertex]
+        end_index = self.vertex_indices[end_vertex]
+
+        distances = {v: float('inf') for v in self.vertices}
+        previous = {v: None for v in self.vertices}
+        distances[start_vertex] = 0
+
+        pq = [(0, start_vertex)]  # (distance, vertex)
+
+        while pq:
+            current_distance, current_vertex = heapq.heappop(pq)
+
+            if current_vertex == end_vertex:
+                break
+
+            current_index = self.vertex_indices[current_vertex]
+
+            for neighbor_index in range(len(self.vertices)):
+                weight = self.matrix[current_index][neighbor_index]
+                if weight != 0:
+                    neighbor_vertex = self.vertices[neighbor_index]
+                    new_distance = current_distance + weight
+                    if new_distance < distances[neighbor_vertex]:
+                        distances[neighbor_vertex] = new_distance
+                        previous[neighbor_vertex] = current_vertex
+                        heapq.heappush(pq, (new_distance, neighbor_vertex))
+
+        # Reconstruct the path
+        path = []
+        current = end_vertex
+        while current:
+            path.append(current)
+            current = previous[current]
+        path.reverse()
+
+        if distances[end_vertex] == float('inf'):
+            print(f"No path found from '{start_vertex}' to '{end_vertex}'.")
+        else:
+            print(f"\nShortest path from '{start_vertex}' to '{end_vertex}': {' -> '.join(path)}")
+            print(f"Total cost: {distances[end_vertex]}")
 
 
 def main():
-    graph = GraphAL()
+    city_net = GraphAdjMatrix(NUM_LANDMARKS)
+    for landmark, edges in graph.items():
+        print("Landmark ", landmark, "Edges ", edges)
+        city_net.add_vertex(landmark)
 
-    graph.add_vertex("A")
-    graph.add_vertex("B")
-    graph.add_vertex("C")
-    graph.add_vertex("D")
-    graph.add_vertex("E")
+    for landmark, edges in graph.items():
+        for edge in edges:
+            weight = random.randint(1,25)
+            city_net.add_edge(landmark, edge, weight)
 
-    graph.add_edge("A", "B")
-    graph.add_edge("A", "C")
-    graph.add_edge("A", "D")
-    graph.add_edge("B", "A")
-    graph.add_edge("B", "E")
-    print(graph.display())
-
-    print("\n=== Adjacency Matrix ===")
-    graph_matrix = GraphMatrix()
-    for v in ["A", "B", "C", "D", "E"]:
-        graph_matrix.add_vertex(v)
-
-    graph_matrix.add_edge("A", "B", 1)
-    graph_matrix.add_edge("A", "C", 1)
-    graph_matrix.add_edge("A", "D", 1)
-    graph_matrix.add_edge("B", "E", 1)
-    graph_matrix.add_edge("B", "C", 10)
-    graph_matrix.display()
-
-    # Remove an edge and display again
-    graph_matrix.remove_edge("A", "B")
-    graph_matrix.remove_edge("A", "D")
-    print("After removing edge (A, B):")
-    graph_matrix.bfs("A")
-    graph_matrix.display()
+    city_net.bfs("Central Park")
+    city_net.display()
+    while True:
+        print("Calculate the shortest path from ")
+        print("Central Park")
+        print("Fifth Avenue")
+        print("Times Square")
+        print("Broadway")
+        print("Empire State Building")
+        print("Wall Street")
+        print("Grand Central Terminal")
+        print("Rockefeller Center")
+        print("Metropolitan Museum of Art")
+        print("Chrysler Building")
+        print("One World Trade Center")
+        choice_1 = input(str("Enter Choice 1:"))
+        choice_2 = input(str("Enter Choice 2:"))
+        city_net.shortest_path(choice_1, choice_2)
 
 if __name__ == "__main__":
     main()
